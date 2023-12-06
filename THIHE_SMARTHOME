@@ -1,0 +1,116 @@
+#define BLYNK_TEMPLATE_ID "TMPL6lh7ABhz2"
+#define BLYNK_TEMPLATE_NAME "NGUYEN THI HE"
+#define BLYNK_AUTH_TOKEN "D_aCNGQ04aEps65meZ1-Qj_tTUfxfyNs"
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+#include "DHT.h"
+
+#define BLYNK_PRINT Serial
+#define APP_DEBUG
+#define USE_NODE_MCU_BOARD
+//#define USE_WEMOS_D1_MINI
+
+
+#define Gas A0
+#define DHTTYPE DHT11
+#define button1 5 //D1
+#define led1 14 //D5
+#define PIR 4 //D2
+#define Temp 0
+
+char ssid[] = "Loi Huynh";
+char pass[] = "0918674772";
+
+float readGas, nhietdo;
+float doam;
+int readPir = 0;
+
+boolean bt1_state=HIGH;
+
+WidgetLED led_connect(V0);
+unsigned long times=millis();
+
+DHT dht(Temp, DHTTYPE); 
+
+void setup()
+{
+  Serial.begin(115200);  
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, pass);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  
+  // Print local IP address and start web server
+  Serial.println("");
+  Serial.println("WiFi connected.");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  delay(100);
+  
+  pinMode(Gas,INPUT);
+  pinMode(led1, OUTPUT);
+  pinMode(PIR,INPUT);
+  pinMode(Temp,INPUT);
+  pinMode(button1,INPUT_PULLUP);
+
+  
+  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+}
+
+void loop() {
+  Blynk.run();
+  //MQ2
+  readGas = analogRead(Gas);
+  Blynk.virtualWrite(V1,readGas);
+  
+  /// PIR
+  readPir = digitalRead(PIR);
+    if(readPir == 1 )
+  {
+    Serial.println("Có Người !!!!");
+    Blynk.virtualWrite(V0, 1);
+    delay(100);
+    }
+  else
+  {
+    Serial.println("Nothing");
+    Blynk.virtualWrite(V0, 0);
+    }
+  // DOC NHIET DO DO AM
+  int doam = dht.readHumidity();
+  float nhietdo = dht.readTemperature(); 
+  Blynk.virtualWrite(V2, nhietdo);
+  Blynk.virtualWrite(V3, doam);
+
+  ////////
+  if(millis()-times>1000){
+    if (led_connect.getValue()){
+      led_connect.off();
+    }else {
+      led_connect.on();
+    }
+    times=millis();
+  }
+  if(digitalRead(button1)==LOW){
+    if(bt1_state==HIGH){
+      digitalWrite(led1,!digitalRead(led1));
+      Blynk.virtualWrite(V4,digitalRead(led1));
+      bt1_state=LOW;
+      delay(200);
+    }
+  }else{
+    bt1_state=HIGH;
+  }
+}
+BLYNK_CONNECTED() {
+  // Request the latest state from the server
+  Blynk.syncVirtual(V4);
+}
+BLYNK_WRITE(V4){
+  int p = param.asInt();
+  digitalWrite(led1, p); 
+}
